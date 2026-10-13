@@ -23,12 +23,13 @@ export const MOVES = {
   L:   { st: 22, ac: 1, rc: 26, proj: 'onda', pose: 'L', special: 1 },
   LS:  { st: 28, ac: 1, rc: 30, proj: 'ondaS', pose: 'super', special: 1 },
   sus: { st: 8, ac: 36, rc: 14, pose: 'shield', special: 1, shield: 1, heal: 6 },
+  pool:{ st: 10, ac: 1, rc: 22, pose: 'pool', special: 1, pool: 1 },
   dp:  { st: 3, ac: 12, rc: 16, dmg: 12, box: [4, -118, 26, 64], hs: 22, bs: 14, push: 3.0, pose: 'uppercut', rise: 1, inv: 8, heavy: 1, special: 1 },
   dash:{ st: 6, ac: 18, rc: 12, dmg: 10, box: [8, -74, 36, 50], hs: 20, bs: 12, push: 4.2, pose: 'dash', dash: 1, heavy: 1, special: 1 },
 };
 export const PROJ = {
-  normal: { dmg: 10, chip: 2, hs: 18, bs: 12, push: 3.0, vx: 3.2, w: 18, h: 18, dy: -64, proj: 1 },
-  super:  { dmg: 26, chip: 6, hs: 30, bs: 20, push: 5.5, vx: 3.8, w: 30, h: 30, dy: -60, proj: 1, heavy: 1, big: 1 },
+  normal: { dmg: 10, chip: 2, hs: 18, bs: 12, push: 3.0, vx: 3.2, w: 26, h: 20, dy: -64, proj: 1 },
+  super:  { dmg: 26, chip: 6, hs: 30, bs: 20, push: 5.5, vx: 3.8, w: 44, h: 80, dy: -52, proj: 1, heavy: 1, big: 1, wave: 1 },
   onda:   { dmg: 14, chip: 3, hs: 22, bs: 14, push: 4.0, vx: 4.2, w: 26, h: 72, dy: -50, proj: 1, heavy: 1, wave: 1 },
   ondaS:  { dmg: 32, chip: 8, hs: 34, bs: 22, push: 6.0, vx: 4.6, w: 44, h: 100, dy: -52, proj: 1, heavy: 1, wave: 1, big: 1 },
 };
@@ -61,20 +62,21 @@ export class Fighter {
   active() { return this.state === 'attack' && !!this.mv.box && !this.hitDone && this.phase() === 1; }
   // aceita o botão até 5 frames depois da direção final; a ordem do último 6 vs último 3 separa meia-lua de uppercut
   recent(d) { return this.hist.length - 1 - this.hist.lastIndexOf(d); }
-  qcf() { return hasSeq(this.hist, [2, 3, 6], 20) && this.recent(6) <= 5 && this.recent(6) < this.recent(3); }
-  dpIn() { return hasSeq(this.hist, [6, 2, 3], 20) && this.recent(3) <= 5 && this.recent(3) < this.recent(6); }
-  qcbIn() { return hasSeq(this.hist, [2, 1, 4], 20) && this.recent(4) <= 5 && this.recent(4) < this.recent(1); }
-  finalIn() { return hasSeq(this.hist, [2, -2, 2, 6], 40); }
+  qcf() { return hasSeq(this.hist, [2, 3, 6], 32) && this.recent(6) <= 9 && this.recent(6) < this.recent(3); }
+  dpIn() { return hasSeq(this.hist, [6, 2, 3], 32) && this.recent(3) <= 9 && this.recent(3) < this.recent(6); }
+  qcbIn() { return hasSeq(this.hist, [2, 1, 4], 32) && this.recent(4) <= 9 && this.recent(4) < this.recent(1); }
+  finalIn() { return hasSeq(this.hist, [2, -2, 2, 6], 58); }
 
   update(ctl, opp, G) {
     this.t++;
+    if (this.side === 0) this.meter = Math.min(100, this.meter + G.regen * this.C.gain);   // o L fica sempre à mão
     const h = ctl.held;
     const fwdK = this.facing === 1 ? 'right' : 'left', backK = this.facing === 1 ? 'left' : 'right';
     const fwd = !!h[fwdK], back = !!h[backK], up = !!h.up, down = !!h.down;
     this.hist.push(down ? (back ? 1 : fwd ? 3 : 2) : up ? (back ? 7 : fwd ? 9 : 8) : (back ? 4 : fwd ? 6 : 5));
-    if (this.hist.length > 40) this.hist.shift();
+    if (this.hist.length > 60) this.hist.shift();
     this.holdBack = back && !up; this.crouchHeld = down;
-    if (back && !up) this.charge++; else { if (this.charge >= 35) this.chargeWin = 14; this.charge = 0; }
+    if (back && !up) this.charge++; else { if (this.charge >= 35) this.chargeWin = 24; this.charge = 0; }
     if (this.chargeWin > 0) this.chargeWin--;
 
     switch (this.state) {
@@ -111,7 +113,8 @@ export class Fighter {
       }
       if (P('dp') || (punch && this.dpIn())) return this.startAttack('dp', G);
       if (this.C.hasSus && punch && this.qcbIn()) return this.startAttack('sus', G);
-      if (P('dash') || (kick && this.chargeWin > 0 && this.recent(6) <= 5)) { this.chargeWin = 0; return this.startAttack('dash', G); }
+      if (this.C.hasPool && (P('pool') || (punch && this.qcbIn())) && !G.hasPool(this)) return this.startAttack('pool', G);
+      if (P('dash') || (kick && this.chargeWin > 0 && this.recent(6) <= 9)) { this.chargeWin = 0; return this.startAttack('dash', G); }
       if ((P('sp') || (punch && this.qcf())) && !G.hasProj(this)) return this.startAttack('sp', G);
       const a = P('hp') ? 'hp' : P('lp') ? 'lp' : P('hk') ? 'hk' : P('lk') ? 'lk' : null;
       if (a) return this.startAttack(down ? 'c' + a : a, G);
@@ -120,10 +123,11 @@ export class Fighter {
         this.vx = fwd ? 2.5 * this.facing : back ? -2.5 * this.facing : 0;
         G.sfx('jump'); return;
       }
-      if (down) { this.state = 'crouch'; this.crouching = true; this.vx = 0; return; }
-      if (fwd) { this.state = 'walk'; this.vx = this.C.walk * this.facing; }
-      else if (back) { this.state = 'walk'; this.vx = -this.C.walk * 0.8 * this.facing; }
-      else { this.state = 'idle'; this.vx = 0; }
+      const slick = G.slick(this), setV = v => { this.vx = slick ? this.vx * 0.96 + v * 0.04 : v; };   // pista de chocolate: escorrega
+      if (down) { this.state = 'crouch'; this.crouching = true; setV(0); return; }
+      if (fwd) { this.state = 'walk'; setV(this.C.walk * this.facing); }
+      else if (back) { this.state = 'walk'; setV(-this.C.walk * 0.8 * this.facing); }
+      else { this.state = 'idle'; setV(0); }
     } else if (this.state === 'jump' && !this.airUsed) {
       const a = P('hp') ? 'jhp' : P('lp') ? 'jlp' : P('hk') ? 'jhk' : P('lk') ? 'jlk' : null;
       if (a) { this.airUsed = true; this.startAttack(a, G); }
@@ -147,6 +151,7 @@ export class Fighter {
     this.af++;
     const ph = this.phase();
     if (m.proj && this.af === m.st) G.spawnProj(this, m.proj);
+    if (m.pool && this.af === m.st) G.spawnPool(this);
     if (m.heal && this.af === m.st) { this.hp = Math.min(this.C.maxHp, this.hp + m.heal); G.heal(this); }
     if (m.rise && this.af === m.st + 1) { this.vy = -8.2; this.vx = 1.4 * this.facing; G.sfx('rise'); }
     if (m.dash) {
@@ -185,7 +190,7 @@ export const overlap = (a, b) => a && b && a[0] < b[0] + b[2] && b[0] < a[0] + a
 export function applyHit(att, def, mv, G, hx, hy, dir) {
   const canAct = def.onGround && ['idle', 'walk', 'crouch', 'block'].includes(def.state);
   const blocked = canAct && def.holdBack && !(mv.low && !def.crouchHeld) && !(mv.air && def.crouchHeld);
-  const mult = G.dmgMult * att.C.atk * def.C.def;
+  const mult = G.dmgMult * att.C.atk * def.C.def * (att.side === 1 ? G.cpuDmg : 1);
   if (blocked) {
     def.state = 'block'; def.crouching = def.crouchHeld; def.stun = mv.bs; def.vx = dir * mv.push * 0.9;
     def.hp -= (mv.chip || 0) * mult;

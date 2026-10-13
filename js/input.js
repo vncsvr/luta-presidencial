@@ -10,7 +10,7 @@ export class Controller {
   step() { this.prev = this.held; this.held = {}; }
 }
 
-export function setupInput({ onGesture, onMute }) {
+export function setupInput({ onGesture, onMute, onTap }) {
   const kb = {}, tch = {}, tap = {}, dpad = {};
   addEventListener('keydown', e => {
     if (e.code === 'KeyM') { onMute(); return; }
@@ -53,7 +53,9 @@ export function setupInput({ onGesture, onMute }) {
     const up = () => { tch[k] = Math.max(0, (tch[k] || 0) - 1); if (!tch[k]) b.classList.remove('on'); };
     b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up);
   }
-  document.getElementById('game').addEventListener('pointerdown', () => { onGesture(); tap.tapc = true; });
+  const game = document.getElementById('game');
+  game.addEventListener('pointerdown', () => { onGesture(); tap.tapc = true; });
+  if (onTap) game.addEventListener('pointerup', onTap);        // tela cheia exige o gesto terminado (pointerup) no celular
 
   return {
     read(ctl) {

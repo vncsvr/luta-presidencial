@@ -75,3 +75,29 @@ export function wrap(str, maxW, scale = 1) {
   if (cur) lines.push(cur);
   return lines;
 }
+
+// ---- letreiros grandes em vetor (alta resolução) ----
+// O contexto chega em unidades lógicas (escala 2); aqui se desenha a 0,5× para usar o canvas inteiro.
+const BIG_FONT = '900 italic SIZEpx "Arial Black", Impact, "Helvetica Neue", Arial, sans-serif';
+function bigFont(ctx, size) {
+  ctx.font = BIG_FONT.replace('SIZE', Math.round(size * 2));
+  if ('letterSpacing' in ctx) ctx.letterSpacing = Math.round(size * 0.12) + 'px';
+}
+export function bigWidth(ctx, str, size) { ctx.save(); bigFont(ctx, size); const w = ctx.measureText(String(str).toUpperCase()).width / 2; ctx.restore(); return w; }
+// (x, y) = centro-topo em unidades lógicas; size = altura aproximada em unidades lógicas.
+// o.fill = [cor de cima, cor de baixo]; o.stroke = contorno; o.shadow = sombra
+export function bigText(ctx, str, x, y, size, o = {}) {
+  str = String(str).toUpperCase();
+  ctx.save(); ctx.scale(0.5, 0.5);
+  bigFont(ctx, size);
+  ctx.textBaseline = 'top'; ctx.lineJoin = 'round'; ctx.miterLimit = 2;
+  const w = ctx.measureText(str).width, px = x * 2, py = y * 2, s2 = size * 2;
+  const ax = o.align === 'left' ? px : o.align === 'right' ? px - w : px - w / 2;
+  if (o.shadow) { ctx.fillStyle = o.shadow; ctx.fillText(str, ax + s2 * 0.07, py + s2 * 0.08); }
+  ctx.strokeStyle = o.stroke || '#1a0610'; ctx.lineWidth = Math.max(3, s2 * 0.16); ctx.strokeText(str, ax, py);
+  const f = o.fill || ['#ffffff', '#ffffff'];
+  const g = ctx.createLinearGradient(0, py, 0, py + s2 * 1.1); g.addColorStop(0, f[0]); g.addColorStop(1, f[1] || f[0]);
+  ctx.fillStyle = g; ctx.fillText(str, ax, py);
+  ctx.globalAlpha = 0.35; ctx.fillStyle = '#fff'; ctx.save(); ctx.beginPath(); ctx.rect(ax - 4, py, w + 8, s2 * 0.38); ctx.clip(); ctx.fillText(str, ax, py); ctx.restore();
+  ctx.restore();
+}

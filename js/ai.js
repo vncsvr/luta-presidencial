@@ -1,8 +1,10 @@
 // IA da CPU: usa o mesmo controle do jogador (sem trapaça), decide a cada "tempo de reação".
+// DIFÍCIL = o NORMAL de antes (fase 3). NORMAL agora é bem mais brando; FÁCIL quase não ataca.
+// dmg = dano do Flávio; regen = energia que o Lula ganha parado (o L fica sempre à mão).
 export const DIFFS = [
-  { name: 'FÁCIL',   react: 26, block: 0.15, atk: 0.45, sp: 0.12, jump: 0.08 },
-  { name: 'NORMAL',  react: 15, block: 0.40, atk: 0.70, sp: 0.22, jump: 0.12 },
-  { name: 'DIFÍCIL', react: 8,  block: 0.70, atk: 0.85, sp: 0.32, jump: 0.15 },
+  { name: 'FÁCIL',   react: 70, block: 0.02, atk: 0.12, sp: 0.03, jump: 0.02, pool: 0,    dmg: 0.45, regen: 0.10 },
+  { name: 'NORMAL',  react: 40, block: 0.12, atk: 0.25, sp: 0.07, jump: 0.04, pool: 0.04, dmg: 0.55, regen: 0.07 },
+  { name: 'DIFÍCIL', react: 15, block: 0.40, atk: 0.70, sp: 0.22, jump: 0.12, pool: 0.12, dmg: 1,    regen: 0.03 },
 ];
 
 export function aiThink(me, opp, G, ctl, D) {
@@ -28,7 +30,9 @@ export function aiThink(me, opp, G, ctl, D) {
     else ai.wait = D.react;
   } else if (oppAtk && R() < D.block) {
     ai.hold = { [back]: true, down: !!(opp.mv && opp.mv.low) }; ai.wait = 16;
-  } else if (me.meter >= 100 && d < 230 && R() < 0.3) {
+  } else if (me.C.hasPool && d > 70 && d < 190 && !G.hasPool(me) && R() < D.pool) {
+    press = 'pool'; ai.wait = D.react;
+  } else if (me.meter >= 100 && d < 230 && R() < 0.3 * (D.react < 20 ? 1 : 0.4)) {
     press = 'su'; ai.wait = D.react;
   } else if (d > 140) {
     if (R() < D.sp) press = 'sp'; else ai.hold = { [fwd]: true };
