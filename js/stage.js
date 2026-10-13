@@ -2,6 +2,7 @@
 // Tudo desenhado por código — sem imagem externa. As coordenadas internas são do canvas (hi-res); a entrada
 // (camX) vem em unidades lógicas de 384×216 e o contexto chega com escala 2.
 import { STAGE_W } from './fighter.js';
+import { layer, stageDither } from './pixel.js';
 
 const W = 768, H = 432, SW = STAGE_W * 2;
 const FAR_F = 0.3, MID_F = 0.6, HORIZON = 224;
@@ -211,7 +212,7 @@ function drawLamp(c, x) {
   c.fillStyle = '#ffe2a0'; c.beginPath(); c.roundRect(x + 14, 194, 14, 7, 3); c.fill();
 }
 
-export function drawStage(cx, camXLogic, t, dim = 0, cheer = 0) {
+function drawStageV(cx, camXLogic, t, dim = 0, cheer = 0) {
   const c = cx, camX = camXLogic * 2;
   c.save(); c.scale(0.5, 0.5);
   c.drawImage(sky, 0, 0);
@@ -284,4 +285,14 @@ export function drawStage(cx, camXLogic, t, dim = 0, cheer = 0) {
   c.drawImage(ground, -Math.round(camX), 352);
   if (dim) { c.fillStyle = `rgba(0,0,0,${dim})`; c.fillRect(0, 0, W, H); }
   c.restore();
+}
+
+// Cenário em pixel art: desenhado a 384×216 (1 px = 1 unidade lógica), reduzido a poucos níveis por canal com pontilhado, ampliado seco.
+let SL;
+export function drawStage(cx, camXLogic, t, dim = 0, cheer = 0) {
+  SL ||= layer(384, 216);
+  SL.c.setTransform(1, 0, 0, 1, 0, 0); SL.c.imageSmoothingEnabled = true;
+  drawStageV(SL.c, camXLogic, t, dim, cheer);
+  stageDither(SL, 8);
+  cx.save(); cx.imageSmoothingEnabled = false; cx.drawImage(SL.cv, 0, 0); cx.restore();
 }

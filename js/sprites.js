@@ -3,8 +3,10 @@
 // Membros articulados (rig.js) com contorno, 4 tons de sombreamento e luz de recorte; roupas por personagem.
 import { CHARS } from './chars.js';
 import { rigFor, joints } from './rig.js';
+import { layer, makePalette, quantize, mix } from './pixel.js';
+import { pixelHead } from './heads.js';
 
-const OUT = '#120a16', TAU = Math.PI * 2, OW = 2.6;
+const OUT = '#140d18', TAU = Math.PI * 2, OW = 2.6;
 const LX = 0.45, LY = -0.89;                               // luz vem de cima e da frente
 
 const circ = (c, x, y, r, f) => { c.fillStyle = f; c.beginPath(); c.arc(x, y, r, 0, TAU); c.fill(); };
@@ -48,11 +50,11 @@ function dk(hex, k) {                                       // escurece uma cor 
 }
 function palettes(C) {
   return {
-    suit: { base: C.suit, shade: C.suitShade, light: C.suitLight, stripe: C.stripe, rim: C.suitLight },
-    pants: { base: C.pants, shade: C.pantsShade, light: C.pantsLight, stripe: C.stripe, rim: C.pantsLight },
+    suit: { base: C.suit, shade: C.suitShade, light: C.suitLight, stripe: null, rim: C.suitLight },
+    pants: { base: C.pants, shade: C.pantsShade, light: C.pantsLight, stripe: null, rim: C.pantsLight },
     skin: { base: C.skin, shade: C.skinShade, light: C.skinLight, rim: C.skinLight },
     back: { base: dk(C.suit, 0.58), shade: dk(C.suit, 0.38), light: dk(C.suit, 0.85) },
-    legBack: { base: dk(C.pants, 0.62), shade: dk(C.pants, 0.42), light: dk(C.pants, 0.86), stripe: C.stripe },
+    legBack: { base: dk(C.pants, 0.62), shade: dk(C.pants, 0.42), light: dk(C.pants, 0.86) },
   };
 }
 
@@ -102,155 +104,6 @@ function cane(c, C, h, raised) {
 }
 
 // ---------------- cabeça ----------------
-function eye(c, x, y, face, big = 1) {
-  const D = OUT;
-  c.lineCap = 'round'; c.lineJoin = 'round';
-  if (face === 'hurt') { c.strokeStyle = D; c.lineWidth = 3; c.beginPath(); c.moveTo(x - 5, y - 4); c.lineTo(x + 3, y); c.lineTo(x - 5, y + 4); c.stroke(); return; }
-  if (face === 'ko') { c.strokeStyle = D; c.lineWidth = 3; c.beginPath(); c.moveTo(x - 6, y); c.lineTo(x + 5, y); c.stroke(); return; }
-  if (face === 'dizzy') { c.strokeStyle = D; c.lineWidth = 2; c.beginPath(); c.arc(x, y, 5, 0, TAU); c.moveTo(x + 2.5, y); c.arc(x, y, 2.5, 0, TAU); c.stroke(); return; }
-  if (face === 'happy') { c.strokeStyle = D; c.lineWidth = 3; c.beginPath(); c.arc(x, y + 3, 5.5, Math.PI * 1.1, Math.PI * 1.9); c.stroke(); return; }
-  ell(c, x, y, 6.4 * big, 5 * big, '#fff');
-  c.strokeStyle = OUT; c.lineWidth = 1.6; c.beginPath(); c.ellipse(x, y, 6.4 * big, 5 * big, 0, 0, TAU); c.stroke();
-  circ(c, x + 1.6, y + 0.4, 3.6, '#3a2418'); circ(c, x + 1.8, y + 0.4, 2.2, D); circ(c, x + 3, y - 1.2, 1.2, '#fff');
-}
-function mouth(c, x, y, face, lip, teeth = true) {
-  c.lineCap = 'round'; c.lineJoin = 'round';
-  if (face === 'hurt') { ell(c, x, y + 2, 7, 6, '#3a0a0a'); c.fillStyle = '#fff'; c.fillRect(x - 6, y - 3, 12, 3); ell(c, x, y + 6, 4, 2.5, '#d0605a'); }
-  else if (face === 'ko') { ell(c, x, y + 2, 6, 4, '#3a0a0a'); ell(c, x, y + 4, 3.5, 2, '#d0605a'); }
-  else if (face === 'dizzy') { c.strokeStyle = lip; c.lineWidth = 2.6; c.beginPath(); c.moveTo(x - 5, y + 1); c.quadraticCurveTo(x, y - 2, x + 5, y + 2); c.stroke(); }
-  else if (face === 'happy') { poly(c, [P(x - 8, y - 3), P(x + 9, y - 3), P(x + 7, y + 5), P(x, y + 8), P(x - 6, y + 5)], '#3a0a0a'); if (teeth) { c.fillStyle = '#fff'; c.fillRect(x - 7, y - 3, 15, 4); } }
-  else if (face === 'proud') { c.strokeStyle = lip; c.lineWidth = 3; c.beginPath(); c.moveTo(x - 6, y + 2); c.quadraticCurveTo(x + 1, y + 4, x + 8, y - 2); c.stroke(); }
-  else if (face === 'angry') { poly(c, [P(x - 7, y - 1), P(x + 7, y - 1), P(x + 5, y + 5), P(x - 5, y + 5)], '#3a0a0a'); if (teeth) { c.fillStyle = '#fff'; c.fillRect(x - 6, y - 1, 12, 3); } }
-  else { c.strokeStyle = lip; c.lineWidth = 3; c.beginPath(); c.moveTo(x - 6, y + 1); c.quadraticCurveTo(x + 1, y + 3, x + 7, y); c.stroke(); }
-}
-function brow(c, x, y, face, col, w = 14, th = 5) {
-  const tilt = face === 'angry' ? 0.38 : face === 'hurt' ? -0.3 : face === 'proud' ? 0.1 : 0;
-  c.save(); c.translate(x, y); c.rotate(tilt);
-  c.fillStyle = col; c.beginPath(); c.moveTo(-w / 2, th / 2); c.quadraticCurveTo(0, -th * 1.2, w / 2, 0); c.lineTo(w / 2, th / 2); c.quadraticCurveTo(0, -th * 0.2, -w / 2, th); c.closePath(); c.fill();
-  c.restore();
-}
-function ear(c, C, x, y) { ell(c, x, y, 5.5, 8, OUT); ell(c, x, y, 4, 6.5, C.skin); ell(c, x - 1, y + 1, 2, 3.5, C.skinDeep); }
-
-function headBase(c, C, path) {
-  c.fillStyle = C.skin; c.fill(path);
-  c.save(); c.clip(path);
-  c.fillStyle = C.skinShade; c.fillRect(-30, -30, 24, 70);                      // lado de trás
-  c.fillStyle = C.skinShade; c.globalAlpha = 0.55; c.beginPath(); c.ellipse(4, 30, 28, 12, 0, 0, TAU); c.fill(); c.globalAlpha = 1;   // sob o queixo
-  c.fillStyle = C.skinLight; c.beginPath(); c.ellipse(14, -10, 6, 10, 0.2, 0, TAU); c.fill();                                       // testa/face iluminada
-  c.restore();
-  c.strokeStyle = OUT; c.lineWidth = OW * 1.6; c.lineJoin = 'round'; c.stroke(path);
-}
-
-function panama(c, C, tilt = -0.07) {
-  c.save(); c.translate(0, -9); c.rotate(tilt);
-  // copa: mais alta e retangular, com vincos laterais (pinça) e dobra no topo
-  const crown = new Path2D(); crown.moveTo(-17, -15); crown.bezierCurveTo(-19, -26, -17, -40, -9, -43); crown.bezierCurveTo(-3, -40, 4, -41, 10, -43); crown.bezierCurveTo(18, -39, 20, -26, 19, -15); crown.closePath();
-  c.strokeStyle = OUT; c.lineWidth = OW * 1.8; c.lineJoin = 'round'; c.stroke(crown);
-  c.fillStyle = C.hat; c.fill(crown);
-  c.save(); c.clip(crown);
-  c.fillStyle = C.hatShade; c.fillRect(-30, -50, 20, 40);                                  // lado de trás
-  c.fillStyle = C.hatLight; c.beginPath(); c.ellipse(13, -30, 4.5, 11, 0.1, 0, TAU); c.fill();
-  c.strokeStyle = C.hatShade; c.lineWidth = 1.2; c.globalAlpha = 0.55;                      // trama da palha
-  for (let y = -42; y < -15; y += 3.4) { c.beginPath(); c.moveTo(-22, y); c.lineTo(24, y + 1); c.stroke(); }
-  c.globalAlpha = 1;
-  c.strokeStyle = C.hatShade; c.lineWidth = 3.2; c.beginPath(); c.moveTo(-3, -43); c.quadraticCurveTo(1, -35, 1, -28); c.stroke();   // vinco do topo
-  c.restore();
-  poly(c, [P(-18, -26), P(19.6, -26), P(19.2, -15), P(-17.6, -15)], C.band);                  // faixa escura
-  c.fillStyle = 'rgba(255,255,255,.16)'; c.fillRect(8, -26, 5, 11);
-  c.strokeStyle = OUT; c.lineWidth = 2; c.strokeRect(-18, -26, 37.6, 11);
-  // aba curta, levemente caída na frente
-  c.beginPath(); c.ellipse(1, -13, 27, 6.4, 0.05, 0, TAU);
-  c.fillStyle = C.hatShade; c.fill(); c.strokeStyle = OUT; c.lineWidth = OW * 1.5; c.stroke();
-  c.beginPath(); c.ellipse(2, -14.2, 25.4, 4.6, 0.05, 0, TAU); c.fillStyle = C.hat; c.fill();
-  c.beginPath(); c.ellipse(11, -15.4, 11, 1.8, 0.05, 0, TAU); c.fillStyle = C.hatLight; c.fill();
-  c.restore();
-}
-function topHat(c, C, tilt = -0.04) {
-  c.save(); c.rotate(tilt);
-  const crown = new Path2D(); crown.moveTo(-18, -14); crown.lineTo(-16, -68); crown.quadraticCurveTo(2, -73, 20, -68); crown.lineTo(21, -14); crown.closePath();
-  c.strokeStyle = OUT; c.lineWidth = OW * 1.8; c.lineJoin = 'round'; c.stroke(crown);
-  c.fillStyle = C.hat; c.fill(crown);
-  c.save(); c.clip(crown);
-  c.fillStyle = C.hatShade; c.fillRect(-30, -80, 24, 70);
-  c.fillStyle = C.hatLight; c.fillRect(11, -72, 6, 60);
-  c.restore();
-  ell(c, 2, -68, 18, 4.5, C.hatLight); c.strokeStyle = OUT; c.lineWidth = 2; c.beginPath(); c.ellipse(2, -68, 18, 4.5, 0, 0, TAU); c.stroke();
-  poly(c, [P(-17.5, -34), P(21, -34), P(21.4, -17), P(-18, -17)], C.band);                    // faixa larga
-  c.fillStyle = 'rgba(255,255,255,.18)'; c.fillRect(10, -34, 6, 17);
-  c.strokeStyle = OUT; c.lineWidth = 2; c.strokeRect(-17.5, -34, 38.5, 17);
-  c.fillStyle = C.gold; c.fillRect(6, -32, 13, 13); c.fillStyle = C.band; c.fillRect(9.5, -29, 6, 7);                // fivela dourada
-  c.strokeStyle = OUT; c.lineWidth = 1.6; c.strokeRect(6, -32, 13, 13);
-  c.beginPath(); c.ellipse(2, -13, 29, 7, 0.03, 0, TAU); c.fillStyle = C.hatShade; c.fill(); c.strokeStyle = OUT; c.lineWidth = OW * 1.5; c.stroke();
-  c.beginPath(); c.ellipse(3, -14.5, 27, 5, 0.03, 0, TAU); c.fillStyle = C.hat; c.fill();
-  c.beginPath(); c.ellipse(12, -16, 12, 2, 0.03, 0, TAU); c.fillStyle = C.hatLight; c.fill();
-  c.restore();
-}
-function glasses(c) {
-  poly(c, [P(4, -10), P(25, -10), P(24, 2), P(21, 5), P(7, 5), P(4, 1)], OUT);
-  poly(c, [P(6, -8), P(23, -8), P(22, 1), P(20, 3), P(8, 3), P(6, 0)], '#0a0a12');
-  poly(c, [P(8, -7), P(14, -7), P(10, 2), P(8, 2)], 'rgba(160,190,255,.45)');
-  line(c, P(4, -7), P(-10, -4), 3, OUT);
-}
-
-// rostos: origem no centro da cabeça, de frente para +x
-const HEADS = {
-  lula(c, C, face, R) {
-    // cabelo branco de trás
-    ell(c, -10, -2, 15, 21, OUT); ell(c, -10, -2, 13.4, 19.6, C.hair); ell(c, -15, 4, 8, 14, C.hairShade);
-    const skull = new Path2D(); skull.moveTo(-17, -4); skull.bezierCurveTo(-17, -22, -2, -26, 8, -24); skull.bezierCurveTo(18, -22, 21, -12, 21, -2);
-    skull.lineTo(22, 6); skull.bezierCurveTo(23, 18, 16, 27, 5, 27); skull.bezierCurveTo(-8, 27, -17, 18, -17, 6); skull.closePath();
-    headBase(c, C, skull);
-    ear(c, C, -6, 4);
-    // barba cheia
-    const beard = new Path2D(); beard.moveTo(-10, 4); beard.bezierCurveTo(-18, 12, -12, 30, 4, 32); beard.bezierCurveTo(18, 33, 26, 24, 25, 14);
-    beard.lineTo(22, 11); beard.bezierCurveTo(15, 14, 9, 10, 5, 9); beard.bezierCurveTo(1, 8, -5, 4, -10, 4); beard.closePath();
-    c.fillStyle = C.beard; c.fill(beard); c.save(); c.clip(beard);
-    c.fillStyle = C.beardShade; c.fillRect(-30, -4, 22, 50); c.globalAlpha = 0.5; c.beginPath(); c.ellipse(4, 34, 26, 8, 0, 0, TAU); c.fill(); c.globalAlpha = 1;
-    c.strokeStyle = '#fff'; c.lineWidth = 1.4; c.globalAlpha = 0.8;
-    for (const [x, y] of [[8, 14], [12, 22], [2, 24], [16, 16]]) { c.beginPath(); c.moveTo(x, y); c.quadraticCurveTo(x + 2, y + 4, x + 1, y + 8); c.stroke(); }
-    c.globalAlpha = 1; c.restore();
-    const jaw = new Path2D(); jaw.moveTo(-10, 4); jaw.bezierCurveTo(-18, 12, -12, 30, 4, 32); jaw.bezierCurveTo(18, 33, 26, 24, 25, 14);
-    c.strokeStyle = OUT; c.lineWidth = OW * 1.6; c.lineJoin = 'round'; c.lineCap = 'round'; c.stroke(jaw);              // contorno só na mandíbula
-    const cheek = new Path2D(); cheek.moveTo(25, 14); cheek.lineTo(22, 11); cheek.bezierCurveTo(15, 14, 9, 10, 5, 9); cheek.bezierCurveTo(1, 8, -5, 4, -10, 4);
-    c.strokeStyle = C.beardShade; c.lineWidth = 1.8; c.stroke(cheek);                                                  // bochecha: linha suave
-    // bigode e nariz
-    ell(c, 16, 12, 11, 4.2, C.beard, 0.05); ell(c, 14, 13.4, 9, 2.4, C.beardShade, 0.05); c.strokeStyle = OUT; c.lineWidth = 1.6; c.beginPath(); c.ellipse(16, 12, 11, 4.2, 0.05, 0, TAU); c.stroke();
-    ell(c, 23, 5, 5.6, 6.4, OUT); ell(c, 23, 5, 4.2, 5, C.skin); ell(c, 21.6, 7.4, 3, 2.4, C.skinShade); ell(c, 24.2, 2.6, 1.8, 2.4, C.skinLight);
-    mouth(c, 13, face === 'happy' || face === 'hurt' || face === 'angry' ? 17 : 19, face, '#5a1a1a', true);
-    eye(c, 11, -4, face); brow(c, 10.5, -12.5, face, C.hairShade, 17, 6);
-    // cabelo do topo (parte visível sob o chapéu e nas têmporas)
-    const hair = new Path2D(); hair.moveTo(-22, 6); hair.bezierCurveTo(-27, -14, -14, -27, 2, -26); hair.bezierCurveTo(8, -26, 12, -23, 13, -19);
-    hair.bezierCurveTo(6, -19, 0, -14, -3, -8); hair.bezierCurveTo(-8, -3, -12, 2, -12, 11); hair.closePath();
-    c.fillStyle = C.hair; c.fill(hair); c.strokeStyle = OUT; c.lineWidth = OW * 1.3; c.stroke(hair);
-    c.strokeStyle = C.hairShade; c.lineWidth = 1.6; for (const [x, y] of [[-14, -12], [-8, -18], [-18, 0]]) { c.beginPath(); c.moveTo(x, y); c.lineTo(x - 3, y + 8); c.stroke(); }
-    if (R.glasses) glasses(c);
-    if (R.hat !== false) panama(c, C);
-  },
-  flavio(c, C, face, R) {
-    ell(c, -12, -3, 13, 19, OUT); ell(c, -12, -3, 11.5, 17.5, C.hair);
-    const skull = new Path2D(); skull.moveTo(-17, -2); skull.bezierCurveTo(-18, -22, -4, -26, 8, -24); skull.bezierCurveTo(18, -22, 21, -12, 21, -2);
-    skull.lineTo(22, 8); skull.bezierCurveTo(22, 16, 21, 21, 17, 25); skull.bezierCurveTo(12, 29, 4, 29, -3, 26); skull.bezierCurveTo(-12, 22, -17, 14, -17, 6); skull.closePath();
-    headBase(c, C, skull);
-    // mandíbula marcada
-    c.strokeStyle = C.skinShade; c.lineWidth = 1.6; c.globalAlpha = 0.7; c.beginPath(); c.moveTo(-8, 12); c.quadraticCurveTo(0, 26, 15, 22); c.stroke(); c.globalAlpha = 1;
-    ear(c, C, -6, 5);
-    // sombra de barba leve
-    c.fillStyle = 'rgba(42,28,18,.10)'; c.beginPath(); c.moveTo(-3, 14); c.quadraticCurveTo(8, 29, 19, 22); c.lineTo(18, 14); c.quadraticCurveTo(8, 17, -3, 14); c.fill();
-    ell(c, 22, 6, 4.4, 5.6, OUT); ell(c, 22, 6, 3, 4.2, C.skin); ell(c, 20.6, 8, 2.4, 2, C.skinShade); ell(c, 23, 3.6, 1.4, 2, C.skinLight);
-    mouth(c, 13, 17, face, '#8a3a3a', true);
-    eye(c, 11, -3, face); brow(c, 10.5, -11, face, C.hair, 17, 6.5);
-    // cabelo escuro: costeleta + franja sob o chapéu
-    const hair = new Path2D(); hair.moveTo(-18, -2); hair.bezierCurveTo(-20, -20, -6, -26, 6, -25); hair.bezierCurveTo(14, -24, 20, -19, 20, -12);
-    hair.bezierCurveTo(14, -15, 6, -16, 0, -13); hair.bezierCurveTo(-4, -8, -6, -2, -8, 10); hair.lineTo(-13, 12); hair.bezierCurveTo(-17, 8, -18, 4, -18, -2); hair.closePath();
-    c.fillStyle = C.hair; c.fill(hair); c.strokeStyle = OUT; c.lineWidth = OW * 1.3; c.stroke(hair);
-    c.fillStyle = C.hairShade; c.beginPath(); c.ellipse(4, -19, 9, 2.4, -0.12, 0, TAU); c.fill();
-    topHat(c, C);
-  },
-};
-export function drawHead(c, id, face, R = {}, scale = 1) {
-  c.save(); c.scale(scale, scale); HEADS[id](c, CHARS[id], face, R); c.restore();
-}
-
 // ---------------- tronco ----------------
 function smooth(pts) {                                            // curva fechada suave (pontos médios + quadráticas)
   const p = new Path2D(), n = pts.length, m = (a, b) => P((a.x + b.x) / 2, (a.y + b.y) / 2), s0 = m(pts[n - 1], pts[0]);
@@ -280,7 +133,7 @@ function torso(c, C, J, R, id) {
   band(-20, 130, -40, -19, 'rgba(0,0,0,.28)');
   band(-20, 70, 12, 16, C.suitLight, 0.55); band(-20, 70, 16, 40, C.suitLight, 0.35);                  // luz da frente
   band(60, 130, -20, 40, 'rgba(0,0,0,.18)');                                // barra mais escura
-  if (C.stripe) {
+  if (false) {
     c.strokeStyle = C.stripe; c.globalAlpha = 0.34; c.lineWidth = 1.3;
     for (let u = -19; u <= 24; u += 6.5) { const a = Lp(-10, u), b = Lp(110, u); c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(b.x, b.y); c.stroke(); }
     c.globalAlpha = 1;
@@ -337,9 +190,9 @@ function neck(c, C, J, R) {
 // ---------------- efeitos de energia (alta resolução) ----------------
 function drawBigL(c, k, t, H) {
   const s = 14 + k * 90, v = 30 + k * 130, cx = H.x + 52, cy = H.y - 14, th = 22 + k * 8;
-  c.save(); c.globalAlpha = 0.6 + 0.3 * ((t >> 1) & 1); c.lineJoin = 'miter';
+  c.save(); c.lineJoin = 'miter';
   const L = (g, col) => { c.fillStyle = col; c.fillRect(cx - g, cy - v - g, th + g * 2, v + g * 2); c.fillRect(cx - g, cy - th - g, s + th + g * 2, th + g * 2); };
-  L(7, '#e8202e'); L(3, '#ff9a1a'); L(-3, '#fff3a0');
+  L(7, '#e8202e'); L(3, '#ff9a1a'); L(-3, (t >> 1) & 1 ? '#ffffff' : '#fff3a0');
   c.restore();
 }
 function drawAura(c, k, t, J) {
@@ -381,7 +234,7 @@ function drawShieldFront(c, t, J) {
 function drawDome(c, t, J) {
   const cx = J.hip.x + 2, cy = -104;
   c.save();
-  const g = c.createRadialGradient(cx, cy, 20, cx, cy, 118); g.addColorStop(0, 'rgba(122,255,200,.05)'); g.addColorStop(1, 'rgba(122,255,200,.3)');
+  const g = c.createRadialGradient(cx, cy, 20, cx, cy, 118); g.addColorStop(0, 'rgba(122,255,200,.0)'); g.addColorStop(1, 'rgba(122,255,200,.16)');
   c.fillStyle = g; c.beginPath(); c.ellipse(cx, cy, 70, 116, 0, 0, TAU); c.fill();
   c.strokeStyle = '#baffe0'; c.lineWidth = 3; c.globalAlpha = 0.9; c.beginPath(); c.ellipse(cx, cy, 70, 116, 0, 0, TAU); c.stroke();
   c.fillStyle = '#fff';
@@ -390,53 +243,86 @@ function drawDome(c, t, J) {
 }
 // ---------------- lutador completo ----------------
 // c já está em unidades lógicas (384×216); camX em unidades lógicas.
+// Camadas de pixel art: G = brilho atrás, A = corpo + cabeça, B = braço da frente, F = efeitos na frente.
+// 1 px da camada = 1 unidade lógica (2 px do canvas); o desenho vetorial entra a 0,5× e é reduzido à paleta do personagem.
+const KW = 288, KH = 240, OX = 144, OY = 214;
+const LAY = { G: layer(KW, KH), A: layer(KW, KH), B: layer(KW, KH), F: layer(KW, KH) };
+const begin = L => { const c = L.c; c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, KW, KH); c.translate(OX, OY); c.scale(0.5, 0.5); c.lineJoin = 'round'; return c; };
+const HL = layer(96, 96);
+const FP = {};
+function fighterPal(C) {
+  if (FP[C.id]) return FP[C.id];
+  const list = [OUT, '#ffffff', '#0b0b14', '#8f8f90', '#e8e8ea', '#ff5a6a', '#8a0a1e', '#e8202e', '#ff9a1a', '#fff3a0', '#ffd23a', '#c8901a', '#9fd8ff', '#baffe0', '#7affc8', '#5d4636', '#3a3644'];
+  for (const k in C) if (typeof C[k] === 'string') list.push(C[k]);
+  for (const k of ['suit', 'pants']) for (const m of [0.38, 0.42, 0.45, 0.58, 0.62, 0.85, 0.86]) list.push(dk(C[k], m));
+  const sS = C.stripe ? mix(C.suit, C.stripe, 0.32) : null, sP = C.stripe ? mix(C.pants, C.stripe, 0.32) : null;
+  if (sS) list.push(sS, sP);
+  const pal = makePalette(list), ix = h => pal.cols.findIndex(c => c.join() === [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)].join());
+  let post;
+  if (sS) {                                                                  // riscas de giz do terno: colunas fixas no corpo
+    const iS = ix(C.suit), iP = ix(C.pants), jS = ix(sS), jP = ix(sP);
+    post = (x, y, k) => (((x - OX) & 3) === 0 ? (k === iS ? jS : k === iP ? jP : k) : k);
+  }
+  return (FP[C.id] = { pal, post });
+}
+
 export function drawFighter(c, f, camX, ox = 0, oy = 0) {
   if (f.state === 'gone') return;
-  const C = f.C, R = rigFor(f), J = joints(R), pal = palettes(C), id = C.id;
-  c.save();
-  c.translate(Math.round((f.x - camX + ox) * 2) / 2, Math.round((f.y + oy) * 2) / 2);
-  c.scale(0.5 * f.facing, 0.5);
-  c.lineJoin = 'round';
-  if (R.aura > 0) drawAura(c, R.aura, f.t, J);
-  if (R.pillar) drawPillar(c, f.t, J);
-  // braço de trás (e bengala do Flávio na mão de trás)
-  const armLimb = (A, front) => {
-    const sleeve = front ? pal.suit : pal.back;
-    limb(c, [A.s, A.e, A.h], [13.5, 11.5, 10.5], sleeve);
-    cuff(c, C, A.e, A.h, id === 'lula' ? C.shirt : C.shirt, { base: id === 'lula' ? C.shirt : C.shirt, shade: '#8f8f90', light: '#fff' });
+  const C = f.C, R = rigFor(f), J = joints(R), pal = palettes(C), id = C.id, fp = fighterPal(C);
+  const { G, A, B, F } = LAY, hasG = R.aura > 0 || R.pillar, hasF = R.L > 0 || R.shieldFront || R.dome || f.state === 'dizzy';
+  const done = (L, o) => { L.c.setTransform(1, 0, 0, 1, 0, 0); quantize(L, fp.pal, o); };
+  if (hasG) {
+    const g = begin(G);
+    if (R.aura > 0) drawAura(g, R.aura, f.t, J);
+    if (R.pillar) drawPillar(g, f.t, J);
+    done(G, { dither: true });
+  }
+  const a = begin(A);
+  const armLimb = (cc, Ar, front) => {
+    limb(cc, [Ar.s, Ar.e, Ar.h], [13.5, 11.5, 10.5], front ? pal.suit : pal.back);
+    cuff(cc, C, Ar.e, Ar.h, C.shirt, { base: C.shirt, shade: '#8f8f90', light: '#fff' });
   };
-  armLimb(J.armB, false);
-  if (id === 'flavio') cane(c, C, J.armB.h, f.state === 'win' || f.state === 'triumph');
-  hand(c, C, J.armB.h, 'fist', false);
-  // pernas
-  const legPal = pal.pants, legB = pal.legBack;
+  armLimb(a, J.armB, false);
+  if (id === 'flavio') cane(a, C, J.armB.h, f.state === 'win' || f.state === 'triumph');
+  hand(a, C, J.armB.h, 'fist', false);
   const leg = (L, back) => {
-    limb(c, [L.h, L.k, L.a], [18.5, 14.5, 10.5], back ? legB : legPal);
-    shoe(c, C, L.a, L.k);
-    // barra da calça
+    limb(a, [L.h, L.k, L.a], [18.5, 14.5, 10.5], back ? pal.legBack : pal.pants);
+    shoe(a, C, L.a, L.k);
     const dx = L.a.x - L.k.x, dy = L.a.y - L.k.y, d = Math.hypot(dx, dy) || 1;
-    const a = P(L.a.x - dx / d * 14, L.a.y - dy / d * 14), b = P(L.a.x - dx / d * 8, L.a.y - dy / d * 8);
-    capsule(c, a, b, 12, 12, back ? dk(C.pants, 0.45) : C.pantsShade);
+    capsule(a, P(L.a.x - dx / d * 14, L.a.y - dy / d * 14), P(L.a.x - dx / d * 8, L.a.y - dy / d * 8), 12, 12, back ? dk(C.pants, 0.45) : C.pantsShade);
   };
   leg(J.legB, true); leg(J.legF, false);
-  torso(c, C, J, R, id);
-  neck(c, C, J, R);
-  c.save(); c.translate(J.head.x, J.head.y); HEADS[id](c, C, R.face, R); c.restore();
-  armLimb(J.armF, true);
-  hand(c, C, J.armF.h, R.shape, true);
-  if (R.L > 0) drawBigL(c, R.L, f.t, J.armF.h);
-  if (R.shieldFront) drawShieldFront(c, f.t, J);
-  if (R.dome) drawDome(c, f.t, J);
-  if (f.state === 'dizzy') {
-    c.save();
-    for (let i = 0; i < 3; i++) {
-      const a = f.t * 0.1 + i * TAU / 3, x = J.head.x + Math.cos(a) * 36, y = J.head.y - 46 + Math.sin(a) * 8;
-      c.save(); c.translate(x, y); c.rotate(a); c.fillStyle = '#ffd23a'; c.beginPath();
-      for (let k = 0; k < 5; k++) { const aa = k * TAU / 5 - Math.PI / 2; c.lineTo(Math.cos(aa) * 8, Math.sin(aa) * 8); c.lineTo(Math.cos(aa + TAU / 10) * 3.4, Math.sin(aa + TAU / 10) * 3.4); }
-      c.closePath(); c.fill(); c.restore();
+  torso(a, C, J, R, id);
+  neck(a, C, J, R);
+  done(A, { post: fp.post });
+  const hx = OX + Math.round(J.head.x / 2), hy = OY + Math.round(J.head.y / 2);
+  if (R.lying) {                                                             // caído: a cabeça gira 90° (rotação exata, sem borrar)
+    const h = HL.c; h.setTransform(1, 0, 0, 1, 0, 0); h.clearRect(0, 0, 96, 96);
+    pixelHead(h, C, 30, 40, R.face, R);
+    A.c.save(); A.c.translate(hx, hy); A.c.rotate(-Math.PI / 2); A.c.drawImage(HL.cv, -40, -52); A.c.restore();
+  } else pixelHead(A.c, C, hx - 9, hy - 12, R.face, R);
+  const b = begin(B);
+  armLimb(b, J.armF, true);
+  hand(b, C, J.armF.h, R.shape, true);
+  done(B, { post: fp.post });
+  if (hasF) {
+    const e = begin(F);
+    if (R.L > 0) drawBigL(e, R.L, f.t, J.armF.h);
+    if (R.shieldFront) drawShieldFront(e, f.t, J);
+    if (R.dome) drawDome(e, f.t, J);
+    if (f.state === 'dizzy') {
+      for (let i = 0; i < 3; i++) {
+        const an = f.t * 0.1 + i * TAU / 3, x = J.head.x + Math.cos(an) * 36, y = J.head.y - (id === 'flavio' ? 76 : 58) + Math.sin(an) * 8;
+        e.save(); e.translate(x, y); e.rotate(an); e.fillStyle = '#ffd23a'; e.beginPath();
+        for (let k = 0; k < 5; k++) { const aa = k * TAU / 5 - Math.PI / 2; e.lineTo(Math.cos(aa) * 9, Math.sin(aa) * 9); e.lineTo(Math.cos(aa + TAU / 10) * 3.8, Math.sin(aa + TAU / 10) * 3.8); }
+        e.closePath(); e.fill(); e.restore();
+      }
     }
-    c.restore();
+    done(F, { dither: true });
   }
+  c.save(); c.imageSmoothingEnabled = false;
+  c.translate(Math.round(f.x - camX + ox), Math.round(f.y + oy)); c.scale(f.facing, 1);
+  for (const L of [hasG && G, A, B, hasF && F]) if (L) c.drawImage(L.cv, -OX, -OY);
   c.restore();
 }
 
@@ -451,15 +337,17 @@ export function drawShadow(c, f, camX, groundY) {
 }
 
 // Retrato (cabeça + busto) para seleção/VS/HUD. (x,y) = centro da cabeça em unidades lógicas; s=1 → cabeça com ~24 de largura.
+const PORT = layer(104, 84), PX = 52, PY = 34;
 export function drawPortrait(c, id, x, y, s, flip = 1, face = 'normal', hat = true) {
-  const C = CHARS[id], pal = palettes(C);
-  c.save(); c.translate(x, y); c.scale(0.5 * s * flip, 0.5 * s);
+  const C = CHARS[id], fp = fighterPal(C), L = PORT, k = L.c;
+  k.setTransform(1, 0, 0, 1, 0, 0); k.clearRect(0, 0, L.w, L.h); k.translate(PX, PY); k.scale(0.5, 0.5);
+  { const c = k;
   // ombros/paletó
   const sh = [P(-60, 80), P(-30, 36), P(6, 36), P(44, 52), P(66, 80)];
   poly(c, [P(-64, 90), P(-44, 38), P(-6, 30), P(20, 38), P(50, 54), P(70, 90)], OUT);
   poly(c, [P(-60, 90), P(-42, 40), P(-6, 33), P(18, 41), P(47, 56), P(66, 90)], C.suit);
   poly(c, [P(-60, 90), P(-42, 40), P(-20, 36), P(-26, 90)], C.suitShade);
-  if (C.stripe) {
+  if (false) {
     c.save(); c.beginPath(); [P(-60, 90), P(-42, 40), P(-6, 33), P(18, 41), P(47, 56), P(66, 90)].forEach((p, i) => i ? c.lineTo(p.x, p.y) : c.moveTo(p.x, p.y)); c.closePath(); c.clip();
     c.strokeStyle = C.stripe; c.globalAlpha = 0.3; c.lineWidth = 1.4; for (let i = -60; i < 70; i += 11) { c.beginPath(); c.moveTo(i, 34); c.lineTo(i + 2, 92); c.stroke(); } c.globalAlpha = 1; c.restore();
   }
@@ -474,21 +362,25 @@ export function drawPortrait(c, id, x, y, s, flip = 1, face = 'normal', hat = tr
     poly(c, [P(-8, 34), P(2, 38), P(8, 90), P(-6, 90)], C.suitLight);
   }
   capsule(c, P(2, 22), P(2, 40), 10, 11, C.skinShade);
-  c.translate(0, 0);
-  HEADS[id](c, C, face, { glasses: false, hat });
-  c.restore();
+  }
+  k.setTransform(1, 0, 0, 1, 0, 0); quantize(L, fp.pal, { post: fp.post });
+  pixelHead(k, C, PX - 9, PY - 12, face, { glasses: false, hat });
+  const m = Math.max(0.5, Math.round(s * 2) / 2);                       // inteiro em pixels do canvas, para não borrar o pixel
+  c.save(); c.imageSmoothingEnabled = false; c.translate(x, y); c.scale(m * flip, m); c.drawImage(L.cv, -PX, -PY); c.restore();
 }
 
 // ---------------- projéteis ----------------
 const GOLD = ['#ffffff', '#fff3a0', '#ffd23a', '#c8901a'], CHOC = ['#c89a72', '#8a5030', '#5a2e18', '#341508'];
+const PRL = layer(160, 128), PRP = makePalette([OUT, '#ffffff', ...GOLD, ...CHOC, '#ffe07a', '#d8b24a', '#fff1a0', '#8a0a1e', '#e8202e', '#ff7a1a', '#ff9a1a', '#fff6c0', '#ffd23a', '#c8901a', '#fff3a0']);
 export function drawProjectile(c, pr, camX, t) {
-  c.save();
-  c.translate(pr.x - camX, pr.y);
-  c.scale(0.5 * (Math.sign(pr.vx) || 1), 0.5);
-  if (pr.kind === 'onda') drawWave(c, pr, t);
-  else if (pr.kind === 'choc') drawBar(c, pr, t);
-  else drawOrb(c, 16, t);
-  c.restore();
+  const L = PRL, k = L.c;
+  k.setTransform(1, 0, 0, 1, 0, 0); k.clearRect(0, 0, L.w, L.h); k.translate(80, 64); k.scale(0.5, 0.5);
+  if (pr.kind === 'onda') drawWave(k, pr, t);
+  else if (pr.kind === 'choc') drawBar(k, pr, t);
+  else drawOrb(k, 16, t);
+  k.setTransform(1, 0, 0, 1, 0, 0); quantize(L, PRP, { dither: true });
+  c.save(); c.imageSmoothingEnabled = false; c.translate(Math.round(pr.x - camX), Math.round(pr.y)); c.scale(Math.sign(pr.vx) || 1, 1);
+  c.drawImage(L.cv, -80, -64); c.restore();
 }
 function drawOrb(c, r, t) {                                               // Bolsa Família: esfera de ouro com moedas girando
   const g = c.createRadialGradient(-r * 0.3, -r * 0.35, 1, 0, 0, r * 1.5);
@@ -544,19 +436,22 @@ function drawWave(c, pr, t) {
 }
 
 // ---------------- pista de chocolate (chão que escorrega) ----------------
+const POOLL = layer(340, 40), POOLP = makePalette(['#1d0b05', '#4a2412', '#6a3820', '#8a5030', '#341508', '#c89a72', '#fff0dc', '#5a2e18']);
 export function drawPool(c, pl, camX, t, groundY) {
-  const x0 = pl.x0 - camX, x1 = pl.x1 - camX, w = x1 - x0, cx = (x0 + x1) / 2;
+  const x0 = pl.x0 - camX, x1 = pl.x1 - camX, w = Math.min(320, x1 - x0), cx = (x0 + x1) / 2;
   const a = Math.min(1, pl.t / 12, (pl.max - pl.t) / 40);
-  c.save(); c.globalAlpha = Math.max(0, a);
-  c.translate(cx, groundY + 5);
-  c.fillStyle = '#1d0b05'; c.beginPath(); c.ellipse(0, 0, w / 2 + 3, 9, 0, 0, TAU); c.fill();
-  c.fillStyle = '#4a2412'; c.beginPath(); c.ellipse(0, -0.5, w / 2, 7.4, 0, 0, TAU); c.fill();
-  c.fillStyle = '#6a3820'; c.beginPath(); c.ellipse(0, -1.6, w / 2 - 6, 4.6, 0, 0, TAU); c.fill();
-  c.fillStyle = 'rgba(255,230,200,.5)'; c.beginPath(); c.ellipse(-w * 0.18 + Math.sin(t * 0.04) * 5, -2.4, w * 0.14, 1.4, 0, 0, TAU); c.fill();
-  c.beginPath(); c.ellipse(w * 0.2 + Math.sin(t * 0.05 + 1) * 4, -1.4, w * 0.08, 1, 0, 0, TAU); c.fill();
+  if (a <= 0.02) return;
+  const L = POOLL, k = L.c;
+  k.setTransform(1, 0, 0, 1, 0, 0); k.clearRect(0, 0, L.w, L.h); k.globalAlpha = a; k.translate(170, 22);
+  k.fillStyle = '#1d0b05'; k.beginPath(); k.ellipse(0, 0, w / 2 + 3, 9, 0, 0, TAU); k.fill();
+  k.fillStyle = '#4a2412'; k.beginPath(); k.ellipse(0, -0.5, w / 2, 7.4, 0, 0, TAU); k.fill();
+  k.fillStyle = '#6a3820'; k.beginPath(); k.ellipse(0, -1.6, w / 2 - 6, 4.6, 0, 0, TAU); k.fill();
+  k.fillStyle = '#c89a72'; k.beginPath(); k.ellipse(-w * 0.18 + Math.sin(t * 0.04) * 5, -2.4, w * 0.14, 1.4, 0, 0, TAU); k.fill();
+  k.beginPath(); k.ellipse(w * 0.2 + Math.sin(t * 0.05 + 1) * 4, -1.4, w * 0.08, 1, 0, 0, TAU); k.fill();
   for (let i = 0; i < 4; i++) {
     const bx = (((i * 0.27 + t * 0.002) % 1) - 0.5) * w * 0.8, by = -5 - ((t * 0.3 + i * 17) % 10);
-    c.fillStyle = 'rgba(138,80,48,.9)'; c.beginPath(); c.arc(bx, by, 1.5, 0, TAU); c.fill();
+    k.fillStyle = '#8a5030'; k.fillRect(Math.round(bx), Math.round(by), 2, 2);
   }
-  c.restore();
+  k.setTransform(1, 0, 0, 1, 0, 0); k.globalAlpha = 1; quantize(L, POOLP, { dither: true });
+  c.save(); c.imageSmoothingEnabled = false; c.drawImage(L.cv, Math.round(cx) - 170, Math.round(groundY + 5) - 22); c.restore();
 }

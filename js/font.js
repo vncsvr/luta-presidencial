@@ -1,3 +1,4 @@
+import { layer, posterize } from "./pixel.js";
 // Fonte bitmap 5x7 desenhada por código (colunas, bit 0 = linha de cima).
 const G = {
   A:[0x7E,0x09,0x09,0x09,0x7E], B:[0x7F,0x49,0x49,0x49,0x36], C:[0x3E,0x41,0x41,0x41,0x22],
@@ -86,7 +87,7 @@ function bigFont(ctx, size) {
 export function bigWidth(ctx, str, size) { ctx.save(); bigFont(ctx, size); const w = ctx.measureText(String(str).toUpperCase()).width / 2; ctx.restore(); return w; }
 // (x, y) = centro-topo em unidades lógicas; size = altura aproximada em unidades lógicas.
 // o.fill = [cor de cima, cor de baixo]; o.stroke = contorno; o.shadow = sombra
-export function bigText(ctx, str, x, y, size, o = {}) {
+function bigTextV(ctx, str, x, y, size, o = {}) {
   str = String(str).toUpperCase();
   ctx.save(); ctx.scale(0.5, 0.5);
   bigFont(ctx, size);
@@ -100,4 +101,15 @@ export function bigText(ctx, str, x, y, size, o = {}) {
   ctx.fillStyle = g; ctx.fillText(str, ax, py);
   ctx.globalAlpha = 0.35; ctx.fillStyle = '#fff'; ctx.save(); ctx.beginPath(); ctx.rect(ax - 4, py, w + 8, s2 * 0.38); ctx.clip(); ctx.fillText(str, ax, py); ctx.restore();
   ctx.restore();
+}
+
+// Letreiro em pixel art: o vetor é desenhado numa camada 400×150 (1 px = 1 unidade lógica), com poucos níveis de cor, e ampliado seco.
+let BL;
+export function bigText(ctx, str, x, y, size, o = {}) {
+  BL ||= layer(400, 150);
+  const k = BL.c, ax = o.align === 'left' ? 20 : o.align === 'right' ? 380 : 200;
+  k.setTransform(1, 0, 0, 1, 0, 0); k.clearRect(0, 0, 400, 150); k.imageSmoothingEnabled = true;
+  bigTextV(k, str, ax, 20, size, o);
+  posterize(BL, 5);
+  ctx.save(); ctx.imageSmoothingEnabled = false; ctx.drawImage(BL.cv, Math.round(x) - ax, Math.round(y) - 20); ctx.restore();
 }
