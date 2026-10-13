@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <meta name="theme-color" content="#000000">
+<meta name="robots" content="noindex">
 <title>Luta Presidencial</title>
 <style>
   html, body { margin: 0; height: 100%; background: #000; overflow: hidden; touch-action: none;
@@ -38,9 +39,13 @@
   #rotate b { font-size: 64px; display: inline-block; animation: giro 2.4s ease-in-out infinite; }
   @keyframes giro { 0%, 25% { transform: rotate(0deg); } 60%, 100% { transform: rotate(-90deg); } }
   @media (orientation: portrait) { body.touch #rotate { display: flex; } }
+  #rotulo { position: fixed; top: 4px; left: 50%; transform: translateX(-50%); z-index: 6; pointer-events: none;
+    background: rgba(0,0,0,.65); color: #fff; font: 500 10px/1.3 system-ui, sans-serif; padding: 3px 8px; border-radius: 4px;
+    white-space: nowrap; max-width: 96vw; overflow: hidden; text-overflow: ellipsis; }
 </style>
 </head>
 <body>
+<div id="rotulo" role="note">Jogo feito com IA (Claude) · caricaturas desenhadas por código, não são imagens reais · por Vinícius Vieira, eleitor voluntário</div>
 <canvas id="game" width="768" height="432"></canvas>
 <button id="mute" type="button">SOM: ON</button>
 <div id="touch">
