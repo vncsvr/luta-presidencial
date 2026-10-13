@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>Luta Presidencial</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; touch-action: none;
+    -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; font-family: system-ui, sans-serif; }
+  #wrap { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
+  canvas { display: block; image-rendering: pixelated; image-rendering: crisp-edges; }
+  #mute { position: fixed; bottom: 6px; right: 6px; z-index: 5; background: rgba(0,0,0,.6); color: #fff;
+    border: 1px solid #fff6; border-radius: 6px; font: 600 11px system-ui, sans-serif; padding: 5px 8px; cursor: pointer; }
+  body.touch #mute { bottom: auto; top: 42px; right: auto; left: 8px; }
+  #touch { display: none; position: fixed; inset: 0; pointer-events: none; z-index: 4; }
+  body.touch #touch { display: block; }
+  #dpad { position: absolute; left: max(14px, env(safe-area-inset-left)); bottom: 14px; width: 132px; height: 132px;
+    border-radius: 50%; background: rgba(255,255,255,.10); border: 2px solid rgba(255,255,255,.25); pointer-events: auto; touch-action: none; }
+  #dpad .knob { position: absolute; left: 50%; top: 50%; width: 50px; height: 50px; margin: -25px 0 0 -25px;
+    border-radius: 50%; background: rgba(255,255,255,.35); pointer-events: none; }
+  .btn { position: absolute; width: 54px; height: 54px; border-radius: 50%; pointer-events: auto; touch-action: none;
+    display: flex; align-items: center; justify-content: center; color: #fff; font: 700 11px system-ui, sans-serif;
+    background: rgba(255,255,255,.14); border: 2px solid rgba(255,255,255,.35); }
+  .btn.on { background: rgba(255,210,58,.55); }
+  .btn[data-k="lp"] { right: 136px; bottom: 76px; } .btn[data-k="hp"] { right: 76px; bottom: 96px; }
+  .btn[data-k="lk"] { right: 136px; bottom: 14px; } .btn[data-k="hk"] { right: 76px; bottom: 34px; }
+  .btn[data-k="sp"] { right: 14px; bottom: 64px; background: rgba(232,32,46,.35); }
+  .btn.big { right: 14px; bottom: 128px; width: 62px; height: 62px; font-size: 30px; background: rgba(255,210,58,.45); border-color: #ffd23a; }
+  #superBtn { right: 150px; bottom: 140px; display: none; background: rgba(255,210,58,.5); }
+  #superBtn.ready { display: flex; }
+  .btn.small { width: 64px; height: 26px; border-radius: 13px; top: 8px; left: 8px; }
+  #rotate { display: none; position: fixed; inset: 0; z-index: 9; background: #000; color: #fff;
+    align-items: center; justify-content: center; text-align: center; font: 700 18px system-ui, sans-serif; padding: 24px; }
+  @media (orientation: portrait) { body.touch #rotate { display: flex; } }
+</style>
+</head>
+<body>
+<div id="wrap"><canvas id="game" width="384" height="216"></canvas></div>
+<button id="mute" type="button">SOM: ON</button>
+<div id="touch">
+  <div id="dpad"><div class="knob"></div></div>
+  <div class="btn" data-k="lp">SOCO</div>
+  <div class="btn" data-k="hp">SOCO+</div>
+  <div class="btn" data-k="lk">CHUTE</div>
+  <div class="btn" data-k="hk">CHUTE+</div>
+  <div class="btn" data-k="sp">ESP</div>
+  <div class="btn" data-k="su" id="superBtn">SUPER</div>
+  <div class="btn big" data-k="L">L</div>
+  <div class="btn small" data-k="start">PAUSA</div>
+</div>
+<div id="rotate">Gire o celular e jogue deitado 📱↻</div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
